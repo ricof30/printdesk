@@ -180,7 +180,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 <body>
 <div class="toast-container" id="toast-container"></div>
 
-
 <div class="header">
   <div><span class="logo">Print<span>Desk</span></span><span class="logo-sub">// staff panel</span></div>
   <div class="hbtns">
@@ -425,7 +424,7 @@ window._initLoad=false;
 let _filter='all';
 let _currentPage=1;
 const JOBS_PER_PAGE=10;
-const _printTimers={};  // tracks auto-done timers keyed by docId
+const _printTimers={};
 let _repFilter='week';
 let _charts={};
 
@@ -616,21 +615,15 @@ async function setStatus(docId, status){
     if(status === 'printing'){
       let secs = 10;
       const toastId = 'toast-timer-' + docId;
-
-      // Show countdown toast with cancel button
       showTimerToast(docId, secs, toastId);
 
-      // Tick every second to update countdown
       _printTimers[docId] = {};
       _printTimers[docId].interval = setInterval(() => {
         secs--;
-        updateTimerToast(toastId, docId, secs);
-        if(secs <= 0){
-          clearInterval(_printTimers[docId].interval);
-        }
+        updateTimerToast(toastId, secs);
+        if(secs <= 0) clearInterval(_printTimers[docId].interval);
       }, 1000);
 
-      // Auto-mark done after 10 seconds
       _printTimers[docId].timeout = setTimeout(async () => {
         clearInterval(_printTimers[docId].interval);
         delete _printTimers[docId];
@@ -669,9 +662,9 @@ function showTimerToast(docId, secs, toastId){
   requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
 }
 
-function updateTimerToast(toastId, docId, secs){
-  const msgEl = document.getElementById(toastId + '-msg');
-  if(msgEl) msgEl.textContent = 'Marking as Done in ' + secs + 's';
+function updateTimerToast(toastId, secs){
+  const el = document.getElementById(toastId + '-msg');
+  if(el) el.textContent = 'Marking as Done in ' + secs + 's';
 }
 
 function dismissTimerToast(toastId){
