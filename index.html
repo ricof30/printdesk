@@ -180,20 +180,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 <body>
 <div class="toast-container" id="toast-container"></div>
 
-<script>
-// Auth check — runs immediately on page load
-(async function(){
-  try{
-    const res = await fetch('/api/check-auth', { credentials: 'include' });
-    const data = await res.json();
-    if(!data.authenticated){
-      window.location.href = '/login.html';
-    }
-  } catch(e) {
-    window.location.href = '/login.html';
-  }
-})();
-</script>
 
 <div class="header">
   <div><span class="logo">Print<span>Desk</span></span><span class="logo-sub">// staff panel</span></div>
@@ -202,7 +188,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
     <span style="font-size:11px;color:rgba(255,255,255,.5);font-family:var(--font-mono)" id="conn-status">Connecting...</span>
     <button class="hbtn" onclick="exportCSV()">↓ CSV</button>
     <button class="hbtn primary" onclick="switchTab('qr',null)">QR Code</button>
-    <button class="hbtn" onclick="doLogout()" style="border-color:rgba(255,100,100,.4);color:rgba(255,150,150,.9)">⏻ Logout</button>
   </div>
 </div>
 
@@ -935,13 +920,6 @@ function exportCSV(){
 const TOAST_ICONS = { success: '✔', error: '✕', info: 'ℹ', warning: '⚠', download: '↓' };
 const TOAST_LABELS = { success: 'Success', error: 'Error', info: 'Info', warning: 'Warning', download: 'Downloading' };
 const TOAST_DURATION = { success: 4000, error: 6000, info: 4000, warning: 5000, download: 8000 };
-
-async function doLogout(){
-  try{
-    await fetch('/api/logout', { credentials: 'include' });
-  } catch(e){}
-  window.location.href = '/login.html';
-}
 
 function showNotif(msg, type) {
   if (!type) type = 'info';
