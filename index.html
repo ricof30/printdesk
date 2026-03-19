@@ -173,7 +173,110 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 .toast.t-download{background:#2980b9;}
 @keyframes si{from{transform:translateX(110%);opacity:0;}to{transform:none;opacity:1;}}
 
-@media(max-width:800px){.stats{grid-template-columns:repeat(2,1fr);}.rgrid,.charts-row{grid-template-columns:1fr;}.cfg-row{grid-template-columns:1fr;}}
+/* ── RESPONSIVE ───────────────────────────────────────────────────── */
+
+/* Tablet (≤900px) */
+@media(max-width:900px){
+  .stats{grid-template-columns:repeat(3,1fr);}
+  .rgrid,.charts-row{grid-template-columns:1fr;}
+  .cfg-row{grid-template-columns:1fr;}
+  .logo-sub{display:none;}
+  .hbtns .hbtn:not(.primary){display:none;}
+  .panel{padding:16px;}
+  .cfg-panel{max-width:100%;}
+  .qr-panel{max-width:100%;}
+}
+
+/* Mobile (≤600px) */
+@media(max-width:600px){
+  /* Header */
+  .header{padding:0 14px;height:48px;}
+  .logo{font-size:20px;}
+  .hbtns{gap:6px;}
+  .hbtn{font-size:10px;padding:4px 10px;}
+
+  /* Nav — scrollable tabs */
+  .nav{padding:0 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .nav::-webkit-scrollbar{display:none;}
+  .ntab{font-size:11px;padding:10px 12px;white-space:nowrap;}
+
+  /* Panel */
+  .panel{padding:12px 14px;}
+
+  /* Stats — 2 columns */
+  .stats{grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px;}
+  .sc{padding:10px 12px;}
+  .sc-val{font-size:20px;}
+  .sc-lbl{font-size:9px;}
+
+  /* Controls — stack vertically */
+  .controls{flex-direction:column;align-items:stretch;gap:8px;}
+  .controls .ftab{flex:1;text-align:center;}
+  .sbox{width:100%;}
+  .ebtn{margin-left:0;width:100%;text-align:center;}
+
+  /* Controls — filter tabs scrollable, search/export full width */
+  .controls{flex-direction:row;flex-wrap:wrap;}
+  .ftab{flex:none;}
+  .sbox{width:100%;order:10;}
+  .ebtn{width:100%;order:11;margin-left:0;}
+
+  /* Job cards — stack layout */
+  .jcard{grid-template-columns:36px 1fr;gap:8px;padding:12px;}
+  .jright{display:none;}
+  .jfile{font-size:12px;}
+  .tag{font-size:9px;padding:1px 5px;}
+  .jwho{font-size:10px;}
+  .jnotes{font-size:10px;}
+  .jidx{font-size:15px;}
+  .abtn{font-size:9px;padding:4px 8px;}
+
+  /* Show price inline on mobile since jright is hidden */
+  .jmobile-price{display:none;gap:6px;align-items:center;margin-top:6px;}
+
+  /* Pagination */
+  .pagination{flex-direction:column;gap:10px;align-items:center;}
+  .page-info{font-size:11px;}
+  .page-btn{padding:4px 8px;font-size:10px;min-width:28px;}
+
+  /* Reports */
+  .rep-filter-row{gap:6px;}
+  .rep-ftab{font-size:10px;padding:5px 10px;}
+  .rep-filter-row div{width:100%;}
+  .rep-filter-row div input{width:100%;}
+  #rep-from,#rep-to{width:100%;font-size:11px;}
+
+  /* Charts */
+  .charts-row{grid-template-columns:1fr;gap:10px;}
+  .chart-card{padding:12px;}
+  .chart-title{font-size:13px;}
+
+  /* Config */
+  .cfg-section{padding:14px;}
+  .cfg-title{font-size:15px;}
+  .cfg-head{flex-wrap:wrap;gap:8px;}
+  .cfg-save-btn{width:100%;}
+  .price-tbl th,.price-tbl td{padding:6px 8px;font-size:11px;}
+  .price-input{width:60px;}
+  .printer-item{flex-wrap:wrap;gap:6px;}
+
+  /* QR */
+  #qr-container{padding:10px;}
+  .copy-btn,.print-qr-btn{font-size:11px;padding:8px;}
+
+  /* Toast — full width on mobile */
+  .toast-container{top:auto;bottom:16px;right:8px;left:8px;min-width:unset;}
+  .toast{max-width:100%;}
+}
+
+/* Very small phones (≤380px) */
+@media(max-width:380px){
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .sc-val{font-size:18px;}
+  .logo{font-size:18px;}
+  .ntab{font-size:10px;padding:9px 10px;}
+}
+
 @media print{.header,.nav,.controls,.jacts,.hbtns,.toast-container{display:none!important;}}
 </style>
 </head>
@@ -185,8 +288,8 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
   <div class="hbtns">
     <div class="live-dot"></div>
     <span style="font-size:11px;color:rgba(255,255,255,.5);font-family:var(--font-mono)" id="conn-status">Connecting...</span>
-    <button class="hbtn" onclick="exportCSV()">↓ CSV</button>
-    <button class="hbtn primary" onclick="switchTab('qr',null)">QR Code</button>
+    <button class="hbtn" onclick="exportCSV()" style="display:none" id="csv-btn">↓ CSV</button>
+    <button class="hbtn primary" onclick="switchTab('qr',null)">QR</button>
   </div>
 </div>
 
@@ -539,6 +642,7 @@ function renderQueue(){
           ${j.doubleSided?'<span class="tag">2-sided</span>':''}
         </div>
         <div class="jwho">👤 ${j.customerName||'—'} · ${fmtTime(j.createdAt)} ${timeTag}</div>
+        <div class="jmobile-price"><span style="font-family:var(--font-head);font-size:16px">₱${j.price||0}</span><span class="badge b-${j.status||'queued'}">${j.status||'queued'}</span></div>
         ${j.notes?`<div class="jnotes">📝 ${j.notes}</div>`:''}
         <div class="jacts">${acts}</div>
       </div>
