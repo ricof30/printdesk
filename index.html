@@ -180,6 +180,21 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 <body>
 <div class="toast-container" id="toast-container"></div>
 
+<script>
+// Auth check — runs immediately on page load
+(async function(){
+  try{
+    const res = await fetch('/api/check-auth', { credentials: 'include' });
+    const data = await res.json();
+    if(!data.authenticated){
+      window.location.href = '/login.html';
+    }
+  } catch(e) {
+    window.location.href = '/login.html';
+  }
+})();
+</script>
+
 <div class="header">
   <div><span class="logo">Print<span>Desk</span></span><span class="logo-sub">// staff panel</span></div>
   <div class="hbtns">
@@ -187,6 +202,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
     <span style="font-size:11px;color:rgba(255,255,255,.5);font-family:var(--font-mono)" id="conn-status">Connecting...</span>
     <button class="hbtn" onclick="exportCSV()">↓ CSV</button>
     <button class="hbtn primary" onclick="switchTab('qr',null)">QR Code</button>
+    <button class="hbtn" onclick="doLogout()" style="border-color:rgba(255,100,100,.4);color:rgba(255,150,150,.9)">⏻ Logout</button>
   </div>
 </div>
 
@@ -424,6 +440,7 @@ window._initLoad=false;
 let _filter='all';
 let _currentPage=1;
 const JOBS_PER_PAGE=10;
+const _printTimers={};  // tracks auto-done timers keyed by docId
 let _repFilter='week';
 let _charts={};
 
@@ -597,10 +614,84 @@ function goToPage(p){
   document.getElementById('jlist').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-async function setStatus(docId,status){
+async function setStatus(docId, status){
   if(!window._db||!window._doc||!window._updateDoc)return;
-  try{await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status,updatedAt:new Date().toISOString()});}
+
+  // Cancel any existing timer for this job
+  if(_printTimers[docId]){
+    clearInterval(_printTimers[docId].interval);
+    clearTimeout(_printTimers[docId].timeout);
+    delete _printTimers[docId];
+  }
+
+  try{
+    await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status,updatedAt:new Date().toISOString()});
+
+    // When set to printing — start 10 second auto-done countdown
+    if(status === 'printing'){
+      let secs = 10;
+      const toastId = 'toast-timer-' + docId;
+
+      // Show countdown toast with cancel button
+      showTimerToast(docId, secs, toastId);
+
+      // Tick every second to update countdown
+      _printTimers[docId] = {};
+      _printTimers[docId].interval = setInterval(() => {
+        secs--;
+        updateTimerToast(toastId, docId, secs);
+        if(secs <= 0){
+          clearInterval(_printTimers[docId].interval);
+        }
+      }, 1000);
+
+      // Auto-mark done after 10 seconds
+      _printTimers[docId].timeout = setTimeout(async () => {
+        clearInterval(_printTimers[docId].interval);
+        delete _printTimers[docId];
+        dismissTimerToast(toastId);
+        await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status:'done',updatedAt:new Date().toISOString()});
+        showNotif('Job marked as Done automatically', 'success');
+      }, 10000);
+    }
+  }
   catch(e){alert('Failed: '+e.message);}
+}
+
+function cancelAutoDone(docId, toastId){
+  if(_printTimers[docId]){
+    clearInterval(_printTimers[docId].interval);
+    clearTimeout(_printTimers[docId].timeout);
+    delete _printTimers[docId];
+  }
+  dismissTimerToast(toastId);
+  showNotif('Auto-done cancelled — mark manually when ready', 'info');
+}
+
+function showTimerToast(docId, secs, toastId){
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast t-warning';
+  toast.id = toastId;
+  toast.innerHTML =
+    '<div class="toast-icon-wrap">⏱</div>'
+    + '<div class="toast-body">'
+    +   '<div class="toast-title">Printing...</div>'
+    +   '<div style="font-size:12px;opacity:.9;font-weight:400" id="' + toastId + '-msg">Marking as Done in ' + secs + 's</div>'
+    + '</div>'
+    + '<button class="toast-close" onclick="cancelAutoDone('' + docId + '','' + toastId + '')">✕ Cancel</button>';
+  container.appendChild(toast);
+  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
+}
+
+function updateTimerToast(toastId, docId, secs){
+  const msgEl = document.getElementById(toastId + '-msg');
+  if(msgEl) msgEl.textContent = 'Marking as Done in ' + secs + 's';
+}
+
+function dismissTimerToast(toastId){
+  const toast = document.getElementById(toastId);
+  if(toast) dismissToast(toast);
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────
@@ -844,6 +935,13 @@ function exportCSV(){
 const TOAST_ICONS = { success: '✔', error: '✕', info: 'ℹ', warning: '⚠', download: '↓' };
 const TOAST_LABELS = { success: 'Success', error: 'Error', info: 'Info', warning: 'Warning', download: 'Downloading' };
 const TOAST_DURATION = { success: 4000, error: 6000, info: 4000, warning: 5000, download: 8000 };
+
+async function doLogout(){
+  try{
+    await fetch('/api/logout', { credentials: 'include' });
+  } catch(e){}
+  window.location.href = '/login.html';
+}
 
 function showNotif(msg, type) {
   if (!type) type = 'info';
