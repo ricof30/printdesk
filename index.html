@@ -424,7 +424,6 @@ window._initLoad=false;
 let _filter='all';
 let _currentPage=1;
 const JOBS_PER_PAGE=10;
-const _printTimers={};
 let _repFilter='week';
 let _charts={};
 
@@ -598,78 +597,10 @@ function goToPage(p){
   document.getElementById('jlist').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-async function setStatus(docId, status){
+async function setStatus(docId,status){
   if(!window._db||!window._doc||!window._updateDoc)return;
-
-  // Cancel any existing timer for this job
-  if(_printTimers[docId]){
-    clearInterval(_printTimers[docId].interval);
-    clearTimeout(_printTimers[docId].timeout);
-    delete _printTimers[docId];
-  }
-
-  try{
-    await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status,updatedAt:new Date().toISOString()});
-
-    // When set to printing — start 10 second auto-done countdown
-    if(status === 'printing'){
-      let secs = 10;
-      const toastId = 'toast-timer-' + docId;
-      showTimerToast(docId, secs, toastId);
-
-      _printTimers[docId] = {};
-      _printTimers[docId].interval = setInterval(() => {
-        secs--;
-        updateTimerToast(toastId, secs);
-        if(secs <= 0) clearInterval(_printTimers[docId].interval);
-      }, 1000);
-
-      _printTimers[docId].timeout = setTimeout(async () => {
-        clearInterval(_printTimers[docId].interval);
-        delete _printTimers[docId];
-        dismissTimerToast(toastId);
-        await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status:'done',updatedAt:new Date().toISOString()});
-        showNotif('Job marked as Done automatically', 'success');
-      }, 10000);
-    }
-  }
+  try{await window._updateDoc(window._doc(window._db,'print-jobs',docId),{status,updatedAt:new Date().toISOString()});}
   catch(e){alert('Failed: '+e.message);}
-}
-
-function cancelAutoDone(docId, toastId){
-  if(_printTimers[docId]){
-    clearInterval(_printTimers[docId].interval);
-    clearTimeout(_printTimers[docId].timeout);
-    delete _printTimers[docId];
-  }
-  dismissTimerToast(toastId);
-  showNotif('Auto-done cancelled — mark manually when ready', 'info');
-}
-
-function showTimerToast(docId, secs, toastId){
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = 'toast t-warning';
-  toast.id = toastId;
-  toast.innerHTML =
-    '<div class="toast-icon-wrap">⏱</div>'
-    + '<div class="toast-body">'
-    +   '<div class="toast-title">Printing...</div>'
-    +   '<div style="font-size:12px;opacity:.9;font-weight:400" id="' + toastId + '-msg">Marking as Done in ' + secs + 's</div>'
-    + '</div>'
-    + '<button class="toast-close" onclick="cancelAutoDone('' + docId + '','' + toastId + '')">✕ Cancel</button>';
-  container.appendChild(toast);
-  requestAnimationFrame(() => requestAnimationFrame(() => toast.classList.add('show')));
-}
-
-function updateTimerToast(toastId, secs){
-  const el = document.getElementById(toastId + '-msg');
-  if(el) el.textContent = 'Marking as Done in ' + secs + 's';
-}
-
-function dismissTimerToast(toastId){
-  const toast = document.getElementById(toastId);
-  if(toast) dismissToast(toast);
 }
 
 // ── REPORTS ───────────────────────────────────────────────────────────
